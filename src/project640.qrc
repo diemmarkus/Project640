@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/p64">
+      <file>stylesheet.css</file>
+    </qresource>
+</RCC>
