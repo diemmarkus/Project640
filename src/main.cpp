@@ -31,7 +31,7 @@
 #pragma warning(pop)
 
 #include "DkSettings.h"
-#include "DkEqualizer.h"
+#include "DkAudioProcessor.h"
 
 int main(int argc, char** argv) {
 	
@@ -63,6 +63,8 @@ int main(int argc, char** argv) {
 	// CMD parser --------------------------------------------------------------------
 
 
+	p64::DkAudioProcessor ap;
+
 	//p64::DkEqualizer* eq = new p64::DkEqualizer();
 
 	//// set COM port
@@ -73,7 +75,7 @@ int main(int argc, char** argv) {
 	//eq->start();
 
 	//// run pong
-	//int rVal = app.exec();
+	int rVal = app.exec();
 
 	//delete eq;
 

@@ -29,9 +29,59 @@
 //#include "DkSettings.h"
 
 #pragma warning(push, 0)	// no warnings from includes - begin
+#include <QDebug>
+#include <QAudioRecorder>
+#include <QUrl>
 #pragma warning(pop)		// no warnings from includes - end
 
 namespace p64 {
 
+	DkAudioProcessor::DkAudioProcessor() {
 
+		mRecorder = new QAudioRecorder;
+
+		QAudioEncoderSettings audioSettings;
+		audioSettings.setCodec("audio/amr");
+		audioSettings.setQuality(QMultimedia::HighQuality);
+
+		mRecorder->setEncodingSettings(audioSettings);
+
+		// select recording device
+		QString dname = findDevice();
+
+		if (!dname.isEmpty())
+			mRecorder->setAudioInput(findDevice());
+
+		qDebug() << "Recording from:" << mRecorder->audioInput();
+
+		mRecorder->setOutputLocation(QUrl::fromLocalFile("C:/temp/test.amr"));
+		mRecorder->record();
+	}
+
+	DkAudioProcessor::~DkAudioProcessor() {
+		mRecorder->stop();
+	}
+
+	QString DkAudioProcessor::findDevice(const QString& name) const {
+
+		auto devices = QAudioDeviceInfo::availableDevices(QAudio::AudioInput);
+
+		QString vCable = "";
+		QStringList dnames;
+
+		for (auto cd : devices) {
+			if (cd.deviceName().contains(name))
+				vCable = cd.deviceName();
+
+			dnames << cd.deviceName();
+		}
+
+		// by these means we can record sound using vCABLE: https://www.vb-audio.com/Cable/index.htm
+		if (vCable.isEmpty()) {
+			qDebug() << "could not find vCABLE - is it installed?";
+			qDebug() << "available sound inputs are:" << dnames;
+		}
+
+		return vCable;
+	}
 }

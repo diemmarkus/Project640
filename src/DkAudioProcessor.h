@@ -24,6 +24,7 @@
 
 #pragma warning(push, 0)	// no warnings from includes - begin
 #include <QObject>
+#include <QAudioDeviceInfo>
 #pragma warning(pop)		// no warnings from includes - end
 
 #ifndef DllExport
@@ -36,6 +37,21 @@
 #endif
 #endif
 
+class QAudioRecorder;
+
 namespace p64 {
+
+class DllExport DkAudioProcessor {
+
+public:
+	DkAudioProcessor();
+	~DkAudioProcessor();
+
+private:
+	QString findDevice(const QString& name = "CABLE Output") const;
+
+	QAudioRecorder* mRecorder = 0;
+
+};
 
 };
