@@ -39,9 +39,9 @@
 //#define int64 long long;
 #define DK_PI 3.141592653589793238462643383279
 
-int cvRound(float num);
-int cvCeil(float num);
-int cvFloor(float num);
+int cvRound(double num);
+int cvCeil(double num);
+int cvFloor(double num);
 
 #define DK_DEG2RAD	0.017453292519943
 #define DK_RAD2DEG 	57.295779513082323
@@ -302,6 +302,54 @@ public:
 		return log((double)x)/log(2.0);
 	}
 
+	/// <summary>
+	/// Computes robust statistical moments (quantiles).
+	/// </summary>
+	/// <param name="valuesIn">The statistical set (samples).</param>
+	/// <param name="momentValue">The statistical moment value (0.5 = median, 0.25 and 0.75 = quartiles).</param>
+	/// <param name="interpolated">A flag if the value should be interpolated if the length of the list is even.</param>
+	/// <returns>The statistical moment.</returns>
+	template <typename numFmt>
+	static double statMoment(const QList<numFmt>& valuesIn, double momentValue, bool interpolated = true) {
+
+		// no stat moment if we have 1 value
+		if (valuesIn.size() == 1)
+			return valuesIn[0];
+
+		// return mean if we have two & interpolation is turned on
+		if (valuesIn.size() == 2 && interpolated) {
+			return (valuesIn[0] + valuesIn[1]) / 2.0;
+		}
+		else if (valuesIn.size() == 2)
+			return valuesIn[0];
+
+		QList<numFmt> values = valuesIn;
+		qSort(values);
+
+		size_t lSize = values.size();
+		double moment = -1;
+		unsigned int momIdx = cvCeil(lSize*momentValue);
+		unsigned int idx = 1;
+
+		// find the statistical moment
+		for (auto val : values) {
+
+			// skip
+			if (idx < momIdx) {
+				idx++;
+				continue;
+			}
+
+			// compute mean between this and the next element
+			if (lSize % 2 == 0 && momIdx < lSize && interpolated)
+				moment = ((double)val + values[idx + 1])*0.5;
+			else
+				moment = (double)val;
+			break;
+		}
+
+		return moment;
+	}
 
 };
 

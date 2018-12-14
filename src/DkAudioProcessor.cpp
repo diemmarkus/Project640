@@ -25,25 +25,27 @@
 
 #include "DkAudioProcessor.h"
 
-//#include "DkUtils.h"
+#include "DkMath.h"
 //#include "DkSettings.h"
 
 #pragma warning(push, 0)	// no warnings from includes - begin
 #include <QDebug>
 #include <QAudioRecorder>
+#include <QAudioProbe>
+#include <QAudioDeviceInfo>
 #include <QUrl>
 #pragma warning(pop)		// no warnings from includes - end
 
 namespace p64 {
 
-	DkAudioProcessor::DkAudioProcessor() {
+	DkAudioProcessor::DkAudioProcessor(QObject* parent) : QObject(parent) {
 
-		mRecorder = new QAudioRecorder;
 
 		QAudioEncoderSettings audioSettings;
 		audioSettings.setCodec("audio/amr");
 		audioSettings.setQuality(QMultimedia::HighQuality);
 
+		mRecorder = new QAudioRecorder(this);
 		mRecorder->setEncodingSettings(audioSettings);
 
 		// select recording device
@@ -54,12 +56,25 @@ namespace p64 {
 
 		qDebug() << "Recording from:" << mRecorder->audioInput();
 
-		mRecorder->setOutputLocation(QUrl::fromLocalFile("C:/temp/test.amr"));
-		mRecorder->record();
+		// TODO: debug only
+		mRecorder->setOutputLocation(QUrl::fromLocalFile("C:/temp/test"));
+		
+		auto probe = new QAudioProbe(this);
+		probe->setSource(mRecorder);
+		connect(probe, SIGNAL(audioBufferProbed(QAudioBuffer)), this, SLOT(processBuffer(QAudioBuffer)));
+				
 	}
 
 	DkAudioProcessor::~DkAudioProcessor() {
 		mRecorder->stop();
+	}
+
+	void DkAudioProcessor::record(bool start) {
+
+		if (start)
+			mRecorder->record();
+		else
+			mRecorder->stop();
 	}
 
 	QString DkAudioProcessor::findDevice(const QString& name) const {
@@ -84,4 +99,54 @@ namespace p64 {
 
 		return vCable;
 	}
+
+	double DkAudioProcessor::getLevel(const QAudioBuffer & buffer, int channelIdx) const {
+		
+		QAudioFormat fmt = buffer.format();
+
+		double maxLevel = 0;
+
+		switch (fmt.sampleType()) {
+		case QAudioFormat::SignedInt: {
+			
+			//double peak = 0;
+			//if (fmt.sampleSize() == 32)
+			//	peak = double(INT_MAX);
+			//if (fmt.sampleSize() == 16)
+			//	peak = double(SHRT_MAX);
+			//if (fmt.sampleSize() == 8)
+			//	peak = double(CHAR_MAX);
+
+			maxLevel = getMaxLevel<int>(buffer.constData<int>(), buffer.frameCount(), channelIdx) / double(INT_MAX*0.5);
+			break;
+		}
+		default:
+			qDebug() << "unknown sample type:" << buffer.format().sampleType();
+		}
+
+		return maxLevel;
+	}
+
+	void DkAudioProcessor::processBuffer(QAudioBuffer buffer) {
+
+		//double l = getLevel(buffer, 0);
+		//mLevelSeries << l;
+		//emit newLevel(l);
+
+		for (int chIdx = 0; chIdx < buffer.format().channelCount(); chIdx++) {
+			double l = getLevel(buffer, chIdx);
+			mLevelSeries << l;
+			//emit newLevel(l);
+		}
+
+		if (mLevelSeries.size() > 2)
+			mLevelSeries.pop_front();
+
+		QList<double> sls = mLevelSeries.toList();
+		double medianLevel = DkMath::statMoment(sls, 0.5);
+
+		emit newLevel(medianLevel);
+
+	}
+
 }

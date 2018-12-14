@@ -24,6 +24,7 @@
 
 #pragma warning(push, 0)	// no warnings from includes - begin
 #include <QObject>
+#include <QMainWindow>
 #pragma warning(pop)		// no warnings from includes - end
 
 
@@ -38,5 +39,37 @@
 #endif
 
 namespace p64 {
+
+	class DkEqualizer;
+	class DkAudioProcessor;
+
+	class DllExport DkMainWindow : public QMainWindow {
+			Q_OBJECT
+
+	public:
+		DkMainWindow(QWidget* parent = 0);
+
+	private:
+		void createLayout();
+
+		DkAudioProcessor* mAudioProcessor;
+	};
+
+	class DkEqualizer : public QWidget {
+		Q_OBJECT
+
+	public:
+		DkEqualizer(QWidget* parent = 0);
+
+	public slots:
+		void setLevel(double level);
+
+	protected:
+		void paintEvent(QPaintEvent* ev) override;
+
+	private:
+		double mLevel = 0;
+
+	};
 
 };

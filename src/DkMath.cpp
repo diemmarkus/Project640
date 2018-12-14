@@ -31,17 +31,17 @@
 
 
 #ifndef WITH_OPENCV
-int cvRound(float num) {
+int cvRound(double num) {
 
 	return (int) (num+0.5f);
 }
 
-int cvCeil(float num) {
+int cvCeil(double num) {
 
 	return (int) (num+1.0f);
 }
 
-int cvFloor(float num) {
+int cvFloor(double num) {
 
 	return (int) num;
 }

@@ -25,12 +25,53 @@
 #include "DkEqualizer.h"
 
 //#include "DkUtils.h"
-//#include "DkSettings.h"
+#include "DkAudioProcessor.h"
 
 #pragma warning(push, 0)	// no warnings from includes - begin
+#include <QPainter>
 #pragma warning(pop)		// no warnings from includes - end
 
 namespace p64 {
 
+	DkMainWindow::DkMainWindow(QWidget* parent) : QMainWindow(parent) {
+
+		mAudioProcessor = new DkAudioProcessor(this);
+		mAudioProcessor->record();
+
+		createLayout();
+	}
+
+	void DkMainWindow::createLayout() {
+
+		DkEqualizer* eq = new DkEqualizer(this);
+
+		setCentralWidget(eq);
+
+		connect(mAudioProcessor, SIGNAL(newLevel(double)), eq, SLOT(setLevel(double)));
+	}
+
+	DkEqualizer::DkEqualizer(QWidget* parent) : QWidget(parent) {
+
+	}
+
+	void DkEqualizer::setLevel(double level) {
+		mLevel = level;
+		update();
+	}
+
+	void DkEqualizer::paintEvent(QPaintEvent * ev) {
+
+		QRectF r = geometry();
+		r.setWidth(r.width()*mLevel);
+
+		QPainter p(this);
+
+		p.setBackground(QColor(0, 0, 0));
+		p.setBrush(QColor(0,255,0));
+		p.setPen(Qt::NoPen);
+		p.drawRect(r);
+
+		QWidget::paintEvent(ev);
+	}
 
 }

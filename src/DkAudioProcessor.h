@@ -24,8 +24,11 @@
 
 #pragma warning(push, 0)	// no warnings from includes - begin
 #include <QObject>
-#include <QAudioDeviceInfo>
+#include <QAudioBuffer>
+#include <QVector>
 #pragma warning(pop)		// no warnings from includes - end
+
+#pragma warning(disable: 4251)
 
 #ifndef DllExport
 #ifdef DK_DLL_EXPORT
@@ -38,20 +41,45 @@
 #endif
 
 class QAudioRecorder;
+class QAudioBuffer;
 
 namespace p64 {
 
-class DllExport DkAudioProcessor {
+class DllExport DkAudioProcessor : public QObject {
+	Q_OBJECT
 
 public:
-	DkAudioProcessor();
+	DkAudioProcessor(QObject* parent = 0);
 	~DkAudioProcessor();
+
+	void record(bool start = true);
+
+signals:
+	void newLevel(double level) const;
+
+protected slots:
+	void processBuffer(QAudioBuffer buffer);
 
 private:
 	QString findDevice(const QString& name = "CABLE Output") const;
+	double getLevel(const QAudioBuffer& buffer, int channelIdx) const;
+
+	template <class T>
+	double getMaxLevel(const T *buffer, int numFrames, int channelIdx) const {
+		
+		double ml = 0;
+
+		for (int idx = 0; idx < numFrames; idx++) {
+			double val = qAbs((double)buffer[idx * channelIdx]);
+			if (val > ml)
+				ml = val;
+		}
+
+		return ml;
+	};
 
 	QAudioRecorder* mRecorder = 0;
-
+	QVector<double> mLevelSeries;
 };
 
 };
