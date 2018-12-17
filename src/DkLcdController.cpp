@@ -27,6 +27,9 @@
 #include "DkUtils.h"
 #include "DkSettings.h"
 
+#include <iostream>
+#include <iomanip>
+
 #pragma warning(push, 0)	// no warnings from includes - begin
 #include <QSettings>
 #include <QDebug>
@@ -37,8 +40,6 @@ namespace p64 {
 
 // DkLcdController --------------------------------------------------------------------
 DkLcdController::DkLcdController(QWidget* widget) : QThread(widget) {
-	parent = widget;
-	init();
 	readSettings();
 }
 
@@ -46,29 +47,25 @@ DkLcdController::~DkLcdController() {
 	writeSettings();
 }
 
-void DkLcdController::init() {
-
-	comPort = "COM5";
-	stop = false;
-}
-
-void DkLcdController::initCom() {
+bool DkLcdController::init() {
 
 	DCB dcb;
 
 	FillMemory(&dcb, sizeof(dcb), 0);
-	if (!GetCommState(hCOM, &dcb))     // get current DCB
+	if (!GetCommState(hCOM, &dcb)) {     // get current DCB
 		qDebug() << "error in get COM state...";
+		return false;
+	}
 
 	//qDebug() << "dcb defaults ------------------------";
 	//printComParams(dcb);
 
 	// set params for serial port communication
-	dcb.BaudRate = CBR_19200;
+	dcb.BaudRate = CBR_1200;
 	dcb.ByteSize = 8;
 	//dcb.fParity = 1;
-	dcb.Parity = 1;
-	dcb.StopBits = 1;
+	dcb.Parity = ODDPARITY;
+	dcb.StopBits = ONESTOPBIT;
 	//dcb.EofChar = 0xFE;		// þ - should be that... (small letter thorn)
 	//dcb.ErrorChar = 0x01;		// SOH (start of heading)
 
@@ -80,18 +77,24 @@ void DkLcdController::initCom() {
 	// Set new state.
 	if (!SetCommState(hCOM, &dcb)) {
 		qDebug() << "cannot set com state!";
+		printf("SetCommState failed with error %d.\n", GetLastError());
+		return false;
 	}
 
-	if (!GetCommState(hCOM, &dcb))     // get current DCB
+	if (!GetCommState(hCOM, &dcb)) {     // get current DCB
 		qDebug() << "error in get COM state...";
+		return false;
+	}
 
-	qDebug() << "\n\ndcb our params ------------------------";
+	qDebug() << "\nDCB params ------------------------";
 	printComParams(dcb);
+	qDebug() << "DCB params ------------------------\n";
 
 	// clear all operations that were performed _before_ we started...
 	PurgeComm(hCOM, PURGE_RXCLEAR);
 
-}
+	return true;
+} 
 
 void DkLcdController::readSettings() {
 	
@@ -181,25 +184,25 @@ void DkLcdController::createImageSequence() const {
 
 std::string DkLcdController::checksumToHex(ushort checksum) const {
 
-	std::string r;
 	std::stringstream ss;
-	ss << std::hex << std::uppercase << checksum;
-	ss >> r;
+	ss	<< std::setfill('0') << std::setw(sizeof(ushort))
+		<< std::hex << std::uppercase << checksum;
 
-	return r;
+	return ss.str();
 }
 
-std::string DkLcdController::dataToHex(byte * data) const {
+std::string DkLcdController::dataToHex(byte * data, size_t size) const {
 
-	std::string r;
 	std::stringstream ss;
 
-	for (int idx = 0; idx < 80; idx++)
-		ss << std::hex << std::uppercase << data[idx];
+	for (size_t idx = 0; idx < size; idx++) {
+		qDebug() << "data:" << data[idx];
+		ss << std::uppercase << std::hex << data[idx];
+	}
 	
-	ss >> r;
+	std::cout << "hexStr " << ss.str() << std::endl;
 
-	return r;
+	return ss.str();
 }
 
 QString DkLcdController::readMessage(HANDLE hCom) const {
@@ -244,39 +247,42 @@ void DkLcdController::run() {
 		qDebug() << "hCOM " << comPort << " is NULL....";
 		return;
 	}
-	else {
-		qDebug() << comPort << "is up and running...\n";
-	}
 
-	initCom();
+	if (init())
+		qDebug() << comPort << "is up and running...\n";
+
 
 	//startDebug(hCOM);
 	//readMessage(hCOM);
 
 	sendMessage("j");	// reset
+	
+	// start debugging...
 	//sendMessage("+");
 	//readMessage(hCOM);
 	//createImageSequence();
-	//sendMessage("~FF");	// turn on the light
-	//readMessage(hCOM);
-	//readMessage(hCOM);
-	//readMessage(hCOM);
-	//qDebug() << "blob...";
-	//readMessage(hCOM);
 
-	//for (;;) {
+	sendMessage("~FF");	// turn on the light
 
-	//	//Sleep(5);
-	//	if (stop)
-	//		break;
+	for (;;) {
 
+		//Sleep(5);
+		if (stop)
+			break;
 
-	//	sendMessage("~FF");	// turn on the light
-	//	break;
-	//	//Sleep(5);
-	//	sendMessage("~10");
+		if (mLevel != mOldLevel) {
 
-	//}
+			std::string lvl = checksumToHex(mLevel);
+
+			//qDebug() << "sending: " << QString::fromStdString(lvl);
+
+			sendMessage("~" + lvl);	// turn on the light
+		}
+		 
+		//Sleep(5);
+		sendMessage("~00");
+
+	}
 	
 	//readMessage(hCOM);
 
@@ -286,32 +292,38 @@ void DkLcdController::printComParams(const DCB& dcb) const {
 
 	qDebug() << "BaudRate" << dcb.BaudRate;
 	qDebug() << "ByteSize"<< dcb.ByteSize;
-	qDebug() << "DCBlength" << dcb.DCBlength;
-	qDebug() << "EofChar" << dcb.EofChar;
-	qDebug() << "ErrorChar" << dcb.ErrorChar;
-	qDebug() << "EvtChar" << dcb.EvtChar;
-	qDebug() << "fAbortOnError" << dcb.fAbortOnError;
-	qDebug() << "fBinary" << dcb.fBinary;
-	qDebug() << "fDsrSensitivity" << dcb.fDsrSensitivity;
-	qDebug() << "fDtrControl" << dcb.fDtrControl;
-	qDebug() << "fDummy2" << dcb.fDummy2;
-	qDebug() << "fErrorChar" << dcb.fErrorChar;
-	qDebug() << "fInX" << dcb.fInX;
-	qDebug() << "fNull" << dcb.fNull;
-	qDebug() << "fOutX" << dcb.fOutX;
-	qDebug() << "fOutxCtsFlow" << dcb.fOutxCtsFlow;
-	qDebug() << "fOutxDsrFlow" << dcb.fOutxDsrFlow;
-	qDebug() << "fParity" << dcb.fParity;
-	qDebug() << "fRtsControl" << dcb.fRtsControl;
-	qDebug() << "fTXContinueOnXoff" << dcb.fTXContinueOnXoff;
+	//qDebug() << "DCBlength" << dcb.DCBlength;
+	//qDebug() << "EofChar" << dcb.EofChar;
+	//qDebug() << "ErrorChar" << dcb.ErrorChar;
+	//qDebug() << "EvtChar" << dcb.EvtChar;
+	//qDebug() << "fAbortOnError" << dcb.fAbortOnError;
+	//qDebug() << "fBinary" << dcb.fBinary;
+	//qDebug() << "fDsrSensitivity" << dcb.fDsrSensitivity;
+	//qDebug() << "fDtrControl" << dcb.fDtrControl;
+	//qDebug() << "fDummy2" << dcb.fDummy2;
+	//qDebug() << "fErrorChar" << dcb.fErrorChar;
+	//qDebug() << "fInX" << dcb.fInX;
+	//qDebug() << "fNull" << dcb.fNull;
+	//qDebug() << "fOutX" << dcb.fOutX;
+	//qDebug() << "fOutxCtsFlow" << dcb.fOutxCtsFlow;
+	//qDebug() << "fOutxDsrFlow" << dcb.fOutxDsrFlow;
+	//qDebug() << "fParity" << dcb.fParity;
+	//qDebug() << "fRtsControl" << dcb.fRtsControl;
+	//qDebug() << "fTXContinueOnXoff" << dcb.fTXContinueOnXoff;
 	qDebug() << "Parity" << dcb.Parity;
 	qDebug() << "StopBits" << dcb.StopBits;
-	qDebug() << "wReserved" << dcb.wReserved;
-	qDebug() << "wReserved1" << dcb.wReserved1;
-	qDebug() << "XoffChar" << dcb.XoffChar;
-	qDebug() << "XoffLim" << dcb.XoffLim;
-	qDebug() << "XonChar" << dcb.XonChar;
-	qDebug() << "XonLim" << dcb.XonLim;
+	//qDebug() << "wReserved" << dcb.wReserved;
+	//qDebug() << "wReserved1" << dcb.wReserved1;
+	//qDebug() << "XoffChar" << dcb.XoffChar;
+	//qDebug() << "XoffLim" << dcb.XoffLim;
+	//qDebug() << "XonChar" << dcb.XonChar;
+	//qDebug() << "XonLim" << dcb.XonLim;
+}
+
+void DkLcdController::setLevel(double level) {
+
+	mOldLevel = mLevel;
+	mLevel = (byte)(qMax(qMin(level*255*2, 255.0), 0.0));
 }
 
 void DkLcdController::serialValue(unsigned short val) const {

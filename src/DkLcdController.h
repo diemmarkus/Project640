@@ -54,18 +54,21 @@ public:
 		stop = true;
 	}
 	
+public slots:
+	void setLevel(double level);
+
 signals:
 	void controllerSignal(int controller, int value) const;
 
 protected:
-	QWidget* parent;
 	HANDLE hCOM;
 
-	QString comPort;
-	bool stop;
+	QString comPort = "COM5";
+	byte mLevel = 0;
+	byte mOldLevel = 0;
+	bool stop = false;
 
-	void init();
-	void initCom();
+	bool init();
 	void serialValue(unsigned short val) const;
 	void printComParams(const DCB& dcb) const;
 
@@ -77,7 +80,7 @@ protected:
 	void createImageSequence() const;
 
 	std::string checksumToHex(ushort checksum) const;
-	std::string dataToHex(byte* data) const;
+	std::string dataToHex(byte* data, size_t size) const;
 
 	QString readMessage(HANDLE hCom) const;
 

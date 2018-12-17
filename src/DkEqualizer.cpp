@@ -26,6 +26,7 @@
 
 //#include "DkUtils.h"
 #include "DkAudioProcessor.h"
+#include "DkLcdController.h"
 
 #pragma warning(push, 0)	// no warnings from includes - begin
 #include <QPainter>
@@ -35,10 +36,23 @@ namespace p64 {
 
 	DkMainWindow::DkMainWindow(QWidget* parent) : QMainWindow(parent) {
 
+		// init
 		mAudioProcessor = new DkAudioProcessor(this);
-		mAudioProcessor->record();
+		mProjector = new DkLcdController(this);
 
+		// show 'em what we got
 		createLayout();
+
+		connect(mAudioProcessor, SIGNAL(newLevel(double)), mProjector, SLOT(setLevel(double)));
+	}
+
+	void DkMainWindow::setComPort(const QString & cp) {
+		mProjector->setComPort(cp);
+	}
+
+	void DkMainWindow::start() {
+		mAudioProcessor->record();
+		mProjector->start();
 	}
 
 	void DkMainWindow::createLayout() {
@@ -46,7 +60,6 @@ namespace p64 {
 		DkEqualizer* eq = new DkEqualizer(this);
 
 		setCentralWidget(eq);
-
 		connect(mAudioProcessor, SIGNAL(newLevel(double)), eq, SLOT(setLevel(double)));
 	}
 
@@ -65,10 +78,9 @@ namespace p64 {
 		r.setWidth(r.width()*mLevel);
 
 		QPainter p(this);
-
+		p.setPen(Qt::NoPen);
 		p.setBackground(QColor(0, 0, 0));
 		p.setBrush(QColor(0,255,0));
-		p.setPen(Qt::NoPen);
 		p.drawRect(r);
 
 		QWidget::paintEvent(ev);

@@ -63,16 +63,17 @@ int main(int argc, char** argv) {
 	// CMD parser --------------------------------------------------------------------
 
 
-	p64::DkMainWindow* mw = new p64::DkMainWindow();
+	p64::DkMainWindow* eq = new p64::DkMainWindow();
 
 	//p64::DkEqualizer* eq = new p64::DkEqualizer();
 
-	//// set COM port
-	//if (!parser.value(comOpt).isEmpty()) {
-	//	eq->setComPort(parser.value(comOpt));
-	//}
+	// set COM port
+	if (!parser.value(comOpt).isEmpty()) {
+		eq->setComPort(parser.value(comOpt));
+	}
 
-	mw->show();
+	eq->start();
+	eq->show();
 
 	//// run pong
 	int rVal = app.exec();

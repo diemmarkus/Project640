@@ -42,6 +42,7 @@ namespace p64 {
 
 	class DkEqualizer;
 	class DkAudioProcessor;
+	class DkLcdController;
 
 	class DllExport DkMainWindow : public QMainWindow {
 			Q_OBJECT
@@ -49,10 +50,14 @@ namespace p64 {
 	public:
 		DkMainWindow(QWidget* parent = 0);
 
+		void setComPort(const QString& cp);
+		void start();
+
 	private:
 		void createLayout();
 
-		DkAudioProcessor* mAudioProcessor;
+		DkAudioProcessor* mAudioProcessor = 0;
+		DkLcdController* mProjector = 0;
 	};
 
 	class DkEqualizer : public QWidget {
